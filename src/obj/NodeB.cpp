@@ -98,10 +98,10 @@ int Client::run () noexcept (false) {
         crypto128::Key receivedKey( keyString.c_str() );
         crypto128::IV receivedIV( ivString.c_str() );
 
-        std::cout << encryptionMode << '\n' << receivedKey.toHexString() << '\n' << receivedIV.toHexString() << '\n';
+//        std::cout << encryptionMode << '\n' << receivedKey.toHexString() << '\n' << receivedIV.toHexString() << '\n';
 
-        std::cout << "SWITCH ENCRIPTION : \n" << getEncryptionMode ( encryptionMode )  << '\n'
-                  << receivedKey.toHexString() << '\n' << receivedIV.toHexString();
+//        std::cout << "SWITCH ENCRIPTION : \n" << getEncryptionMode ( encryptionMode )  << '\n'
+//                  << receivedKey.toHexString() << '\n' << receivedIV.toHexString();
 
         this->_socket.enableEncryption( getEncryptionMode( encryptionMode ), receivedKey, receivedIV );
         this->_socket << "NODE_READY";
