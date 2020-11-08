@@ -61,9 +61,13 @@ public:
 
 };
 
+#include <fstream>
+
 int main () {
     try {
-        return Server ( PORT, true ).run();
+        std::ofstream logFile ( "../logs/serverLog.txt" );
+        return Server ( PORT, true, logFile ).run();
+        logFile.close();
     } catch ( std::exception const & exception ) {
         std::cerr << "Exception caught in application base runtime : " << exception.what() << '\n';
     }
@@ -125,8 +129,26 @@ int Server::run() noexcept(false) {
 
         std::cout << "Mode/Key/IV sent\n";
 
-        this->_threadNodeA.join();
-        this->_threadNodeB.join();
+        this->_nodeASync.getTo().wait();
+        this->_nodeBSync.getTo().wait();
+
+        std::cout << "Key/IV/mode verified\n";
+
+
+        while ( true ) {
+            this->_nodeASync.getTo().wait();
+            this->_nodeBSync.getTo().wait();
+            this->_nodeASync.getFrom().notify();
+            this->_nodeBSync.getFrom().notify();
+
+            if ( ! this->_threadNodeA.joinable() && ! this->_threadNodeB.joinable() )
+                break;
+        }
+
+        std::cout << "Task Finished\n";
+
+//        this->_threadNodeA.join();
+//        this->_threadNodeB.join();
 //        controlThread.join();
 
     } catch ( Socket::Exception const & exception ) {

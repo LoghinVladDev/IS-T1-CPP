@@ -58,12 +58,14 @@ KeyManager & KeyManager::loadKeys ( const char * pFilePath ) noexcept {
         std::string key1String;
         std::string key2String;
         std::string key3String;
+        std::string ivString;
 
-        keysFile >> key1String >> key2String >> key3String;
+        keysFile >> key1String >> key2String >> key3String >> ivString;
 
         this->setK1( crypto128::Key::getFromHex( key1String.c_str() ) );
         this->setK2( crypto128::Key::getFromHex( key2String.c_str() ) );
         this->setK3( crypto128::Key::getFromHex( key3String.c_str() ) );
+        this->_iv = crypto128::IV::getFromHex( ivString.c_str() );
 
         keysFile.close();
     } catch ( std::exception const & exception ) {
@@ -71,6 +73,10 @@ KeyManager & KeyManager::loadKeys ( const char * pFilePath ) noexcept {
     }
 
     return * this;
+}
+
+const crypto128::IV &KeyManager::getIV() noexcept {
+    return this->_iv;
 }
 
 

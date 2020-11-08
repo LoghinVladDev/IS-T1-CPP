@@ -12,6 +12,9 @@ Socket::SocketDebug Socket::SocketDebug::_instance;
 
 #include <iomanip>
 #include <ctime>
+#include <mutex>
+
+static std::mutex printGuard;
 
 std::string getTimeAsString(  ) noexcept {
     auto time = std::time ( nullptr );
@@ -26,6 +29,7 @@ void Socket::SocketDebug::setDebugOutputBuffer( std::ostream & buffer ) noexcept
 }
 
 const Socket::SocketDebug & Socket::SocketDebug::operator<<(const std::string &str) const noexcept {
+    std::lock_guard < std::mutex > readProtector ( printGuard );
     if ( this->_debugToggle ) {
         (*this->_debugBuffer) << str;
     }
@@ -34,6 +38,7 @@ const Socket::SocketDebug & Socket::SocketDebug::operator<<(const std::string &s
 }
 
 const Socket::SocketDebug & Socket::SocketDebug::operator << ( const char * pStr ) const noexcept {
+    std::lock_guard < std::mutex > readProtector ( printGuard );
     if ( this->_debugToggle ) {
         (*this->_debugBuffer) << pStr;
     }
@@ -42,6 +47,7 @@ const Socket::SocketDebug & Socket::SocketDebug::operator << ( const char * pStr
 }
 
 const Socket::SocketDebug & Socket::SocketDebug::operator << ( char c ) const noexcept {
+    std::lock_guard < std::mutex > readProtector ( printGuard );
     if ( this->_debugToggle ) {
         (*this->_debugBuffer) << c;
      }
@@ -50,6 +56,7 @@ const Socket::SocketDebug & Socket::SocketDebug::operator << ( char c ) const no
 }
 
 const Socket::SocketDebug & Socket::SocketDebug::operator << ( std::size_t size ) const noexcept {
+    std::lock_guard < std::mutex > readProtector ( printGuard );
     if ( this->_debugToggle ) {
         (*this->_debugBuffer) << size;
     }
@@ -58,6 +65,7 @@ const Socket::SocketDebug & Socket::SocketDebug::operator << ( std::size_t size 
 }
 
 const Socket::SocketDebug & Socket::SocketDebug::operator << ( int val ) const noexcept {
+    std::lock_guard < std::mutex > readProtector ( printGuard );
     if ( this->_debugToggle ) {
         (*this->_debugBuffer) << val;
     }
@@ -97,12 +105,10 @@ Socket & Socket::close() noexcept {
     return * this;
 }
 
-
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "hicpp-signed-bitwise"
 
 Socket & Socket::operator >> ( std::string & inputBuffer ) noexcept (false) {
-
     #define TREAT_READ_EXCEPTIONS(_readResult, _normalResult)                                           \
         if ( (_readResult) == Socket::SOCKET_ERROR ) {                                                  \
             this->close();                                                                              \
@@ -143,7 +149,17 @@ Socket & Socket::operator >> ( std::string & inputBuffer ) noexcept (false) {
 
     inputBuffer = this->decrypt ( inputBuffer );
 
-    Socket::debug() << "Decrypted String '" << inputBuffer << "' ( 0x" << reinterpret_cast< std::size_t >( this ) << " )\n";
+
+    std::string encryptorDetails =
+            "{ isEnabled = " +
+            std::to_string(this->_encryptionDetails._isEncrypted) +
+            ", key = " +
+            this->_encryptionDetails._encryptionKey.toHexString() +
+            ", iv = " +
+            this->_encryptionDetails._encryptionIV.toHexString() +
+            ", mode = " +
+            std::to_string(this->_encryptionDetails._encryptionMode) + "}";
+    Socket::debug() << "Decrypted String '" << inputBuffer << "' with : " << encryptorDetails << " ( 0x" << reinterpret_cast< std::size_t >( this ) << " )\n";
 
 
     return * this;
@@ -151,7 +167,6 @@ Socket & Socket::operator >> ( std::string & inputBuffer ) noexcept (false) {
 }
 
 Socket & Socket::operator << ( const std::string & outputBuffer ) noexcept (false) {
-
     #define TREAT_WRITE_EXCEPTIONS(_writeResult, _normalResult)                                         \
         if ( (_writeResult ) == Socket::SOCKET_ERROR ) {                                                \
             this->close();                                                                              \
@@ -165,10 +180,25 @@ Socket & Socket::operator << ( const std::string & outputBuffer ) noexcept (fals
     if ( ( this->_exceptionFlags & Socket::eClosed ) && this->isClosed() )
         throw Socket::ClosedException();
 
-    Socket::debug() << "Encrypting '" << outputBuffer << "' (0x" << reinterpret_cast< std::size_t >( this ) << " )\n";
+    std::string encryptorDetails =
+            "{ isEnabled = " +
+            std::to_string(this->_encryptionDetails._isEncrypted) +
+            ", key = " +
+            this->_encryptionDetails._encryptionKey.toHexString() +
+            ", iv = " +
+            this->_encryptionDetails._encryptionIV.toHexString() +
+            ", mode = " +
+            std::to_string(this->_encryptionDetails._encryptionMode) + "}";
+    Socket::debug() << "Encrypting '" << outputBuffer << "' with : " << encryptorDetails << " (0x" << reinterpret_cast< std::size_t >( this ) << " )\n";
+
+    int messageLength = 0;
+    if ( this->_encryptionDetails._isEncrypted )
+        messageLength = crypto128::CryptoBlock::split( outputBuffer.c_str() ).size() * 16 + 1;
+    else if ( ! this->_encryptionDetails._isEncrypted )
+        messageLength = static_cast < int > (outputBuffer.length() + 1);
+
     auto encryptedMessage = this->encrypt ( outputBuffer );
 
-    int messageLength = static_cast < int > (encryptedMessage.length() + 1);
     int bytesWritten = write ( this->_descriptor, & messageLength, sizeof (int) );
     TREAT_WRITE_EXCEPTIONS( bytesWritten, sizeof ( int ) )
 

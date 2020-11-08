@@ -5,12 +5,13 @@
 #include "ServerThread.h"
 #include <KeyManager.h>
 
+auto removeSpaces = [](std::string & s) -> std::string & { while ( s.ends_with(' ') ) s.pop_back(); return s; };
 crypto128::CryptoManager::EncryptMode getEncrpytionModeFromString ( std::string & string ) noexcept {
     auto toLower = [](std::string & s) -> std::string & { for( char & c : s ) c = static_cast < char > (std::tolower(c)); return s; };
-    if ( toLower ( string ) == "ecb" ) return crypto128::CryptoManager::ECB;
-    if ( toLower ( string ) == "cbc" ) return crypto128::CryptoManager::CBC;
-    if ( toLower ( string ) == "cfb" ) return crypto128::CryptoManager::CFB;
-    if ( toLower ( string ) == "ofb" ) return crypto128::CryptoManager::OFB;
+    if ( removeSpaces ( toLower ( string ) ) == "ecb" ) return crypto128::CryptoManager::ECB;
+    if ( removeSpaces ( toLower ( string ) ) == "cbc" ) return crypto128::CryptoManager::CBC;
+    if ( removeSpaces ( toLower ( string ) ) == "cfb" ) return crypto128::CryptoManager::CFB;
+    if ( removeSpaces ( toLower ( string ) ) == "ofb" ) return crypto128::CryptoManager::OFB;
 
     return crypto::CryptoManager<crypto::BITS_128>::ECB;
 }
@@ -49,16 +50,63 @@ void ServerThread::run() noexcept {
 
         std::cout << "Server Assigned : " << this->_encryptMode << '\n';
 
+        crypto128::Key assignedKey;
+        crypto128::IV  assignedIV;
+
         if ( this->_encryptMode == crypto::CryptoManager<crypto::BITS_128>::ECB ) {
             this->_socket << getEncryptionModeString( this->_encryptMode );
-            this->_socket << reinterpret_cast < const char * > ( KeyManager::getInstance().getK1().data() );
+            assignedKey = KeyManager::getInstance().getK1();
+            this->_socket << reinterpret_cast < const char * > ( assignedKey.data() );
         } else if ( this->_encryptMode == crypto::CryptoManager<crypto::BITS_128>::CFB ) {
             this->_socket << getEncryptionModeString( this->_encryptMode );
-            this->_socket << reinterpret_cast < const char * > ( KeyManager::getInstance().getK2().data() );
-            this->_socket << reinterpret_cast < const char * > ( crypto128::IV::getRandom().data() );
+            assignedKey = KeyManager::getInstance().getK2();
+//            assignedIV  = crypto128::IV::getRandom();
+            assignedIV  = KeyManager::getInstance().getIV();
+            this->_socket << reinterpret_cast < const char * > ( assignedKey.data() );
+            this->_socket << reinterpret_cast < const char * > ( assignedIV.data() );
         }
 
         this->_semaphore.getTo().notify();
+
+        std::string confirmationMessage;
+
+        std::cout << "SWITCH ENCRIPTION : \n" << this->_encryptMode << '\n'
+            << assignedKey.toHexString() << '\n' << assignedIV.toHexString();
+
+        this->_socket.enableEncryption( this->_encryptMode, assignedKey, assignedIV );
+
+        this->_socket >> confirmationMessage;
+
+        std::cout << confirmationMessage << '\n';
+
+        if ( removeSpaces(confirmationMessage) != Socket::CONFIRMATION_MESSAGE ) {
+            this->_socket.close();
+            return;
+        }
+
+//        std::cout << "Message received successfully\n";
+
+
+        this->_semaphore.getTo().notify();
+
+
+        this->_socket << "ready";
+
+        std::string msg;
+        this->_socket >> msg;
+
+        try {
+            this->_semaphore.getTo().notify();
+            while (removeSpaces(msg) != "done") {
+
+                this->_semaphore.getFrom().wait();
+                this->_socket << "continue";
+                this->_semaphore.getTo().notify();
+
+            }
+        } catch ( Socket::Exception const & e ) {
+            std::cout << e.what() << '\n';
+        }
 
         this->_socket.close();
 

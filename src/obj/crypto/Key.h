@@ -64,7 +64,10 @@ crypto::Key<size> crypto::Key<size>::getRandom() noexcept {
     srand(time(nullptr));
     Key <size> key;
     for ( auto i = 0; i < static_cast < std::size_t > ( size ); i++ ) {
-        key[i] = rand()%256;
+        key[i] = rand()%128;
+
+        while ( key[i] <= 32 || key[i] >= 127 )
+            key[i] = rand () % 128;
     }
 
     return key;

@@ -15,6 +15,10 @@ ServerSocket::ServerSocket( uint16 port, uint32 queueSize ) noexcept (false) : S
     serverInfo.sin_addr.s_addr = htonl ( INADDR_ANY );
     serverInfo.sin_family = AF_INET;
 
+    int sock_opt_option = 1;
+    if ( -1 == setsockopt ( this->_descriptor, SOL_SOCKET, SO_REUSEADDR, & sock_opt_option, sizeof ( int ) ) )
+        throw SetSocketOptionException();
+
     if ( -1 == bind( this->_descriptor, reinterpret_cast< sockaddr * > ( & serverInfo ), static_cast < socklen_t > ( sizeof ( sockaddr_in ) ) ) )
         throw BindException();
 

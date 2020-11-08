@@ -27,6 +27,7 @@ private:
         static SocketDebug _instance;
 
     public:
+
         static const SocketDebug & getInstance () noexcept;// { return SocketDebug::_instance; }
 
         const SocketDebug & operator << ( const std::string & str ) const noexcept;
@@ -78,6 +79,8 @@ protected:
     [[nodiscard]] constexpr bool isClosed () const noexcept { return this->_descriptor == CLOSED_DESCRIPTOR; }
 
 public:
+    constexpr static const char * CONFIRMATION_MESSAGE = "NODE_READY";
+
     class Exception : public std::exception { };
 
     class DisconnectException : public Socket::Exception {
@@ -119,6 +122,8 @@ public:
 
 
 public:
+    int getRawSocket () const noexcept { return this->_descriptor; }
+
     Socket ( const Socket & obj ) noexcept :
             _descriptor(obj._descriptor),
             _exceptionFlags(obj._exceptionFlags){

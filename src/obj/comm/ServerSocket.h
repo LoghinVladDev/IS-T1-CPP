@@ -18,6 +18,13 @@ public:
         }
     };
 
+    class SetSocketOptionException : public Socket::Exception {
+    public:
+        [[nodiscard]] const char * what() const noexcept override {
+            return "Fail on SetSockOpt";
+        }
+    };
+
     class ListenException : public Socket::Exception {
         [[nodiscard]] const char * what() const noexcept override {
             return "Fail on listen";

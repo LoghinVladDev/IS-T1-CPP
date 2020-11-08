@@ -127,7 +127,7 @@ namespace crypto {
 
         [[nodiscard]] std::string toHexString() const noexcept;
 
-        static std::list<CryptoBlock<byteSize> > split(const char *) noexcept;
+        static std::list<CryptoBlock<byteSize> > split(const char *, uint32 = 0) noexcept;
     };
 
 }
@@ -148,8 +148,13 @@ std::string crypto::CryptoBlock<size>::toHexString() const noexcept {
 }
 
 template<crypto::BlockSize byteSize>
-std::list<crypto::CryptoBlock<byteSize> > crypto::CryptoBlock<byteSize>::split(const char *pText) noexcept {
-    std::size_t length = strlen(pText);
+std::list<crypto::CryptoBlock<byteSize> > crypto::CryptoBlock<byteSize>::split(const char *pText, uint32 lengthOverride) noexcept {
+    std::size_t length;
+    if ( lengthOverride == 0 )
+        length = strlen(pText);
+    else
+        length = lengthOverride;
+
     std::list<CryptoBlock<byteSize> > list;
 
     for (std::size_t i = 0, count = length / static_cast < std::size_t > ( byteSize ); i < count; i++) {

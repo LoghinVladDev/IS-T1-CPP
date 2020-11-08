@@ -33,6 +33,8 @@ set(
         src/obj/comm/Socket.h
         src/obj/comm/ClientSocket.cpp
         src/obj/comm/ClientSocket.h
+        src/obj/comm/ServerSocket.cpp
+        src/obj/comm/ServerSocket.h
 )
 
 set(
@@ -59,7 +61,8 @@ set (STATIC_LIBS
 )
 
 
-add_executable(CryptoManagerTest src/main.cpp ${COMMON_SOURCES} ${CRYPTO_SOURCES} )
+add_executable(CryptoManagerTest src/main.cpp ${COMMON_SOURCES} ${CRYPTO_SOURCES} src/obj/KeyManager.cpp )
+target_link_libraries(CryptoManagerTest ${STATIC_LIBS})
 
 add_executable(NodeA ${COMMON_SOURCES} ${CRYPTO_SOURCES} ${CLIENT_SOURCES} src/obj/NodeA.cpp)
 add_executable(NodeB ${COMMON_SOURCES} ${CRYPTO_SOURCES} ${CLIENT_SOURCES} src/obj/NodeB.cpp)

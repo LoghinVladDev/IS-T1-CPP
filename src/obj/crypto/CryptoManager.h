@@ -42,10 +42,26 @@ namespace crypto {
             return decrypt<mode>( plainText.c_str(), key, iv );
         }
 
-        static std::string encryptECB(const char *, const Key<size> & ) noexcept;
-        static std::string encryptCBC(const char *, const Key<size> &, const IV<size> &) noexcept;
-        static std::string encryptCFB(const char *, const Key<size> &, const IV<size> &) noexcept;
-        static std::string encryptOFB(const char *, const Key<size> &, const IV<size> &) noexcept;
+        static std::string encryptECB(const char * pText, const Key<size> & key ) noexcept {
+            return encryptECB (pText, 0, key);
+        }
+
+        static std::string encryptCBC(const char * pText, const Key<size> & key, const IV<size> & iv) noexcept{
+            return encryptCBC (pText, 0, key, iv);
+        }
+
+        static std::string encryptCFB(const char * pText, const Key<size> & key, const IV<size> & iv) noexcept{
+            return encryptCFB (pText, 0, key, iv);
+        }
+
+        static std::string encryptOFB(const char * pText, const Key<size> & key, const IV<size> & iv) noexcept{
+            return encryptOFB (pText, 0, key, iv);
+        }
+
+        static std::string encryptECB(const char *, uint32, const Key<size> & ) noexcept;
+        static std::string encryptCBC(const char *, uint32, const Key<size> &, const IV<size> &) noexcept;
+        static std::string encryptCFB(const char *, uint32, const Key<size> &, const IV<size> &) noexcept;
+        static std::string encryptOFB(const char *, uint32, const Key<size> &, const IV<size> &) noexcept;
 
         static std::string encryptECB(const std::string & plainText, const Key<size> & key) noexcept {
             return CryptoManager::encryptECB( plainText.c_str(), key );
@@ -54,16 +70,33 @@ namespace crypto {
             return CryptoManager::encryptCBC( plainText.c_str(), key, iv );
         }
         static std::string encryptCFB(const std::string & plainText, const Key<size> & key, const IV<size> & iv) noexcept {
-            return CryptoManager::encryptCBC( plainText.c_str(), key, iv );
+            return CryptoManager::encryptCFB( plainText.c_str(), key, iv );
         }
         static std::string encryptOFB(const std::string & plainText, const Key<size> & key, const IV<size> & iv) noexcept {
-            return CryptoManager::encryptCBC( plainText.c_str(), key, iv );
+            return CryptoManager::encryptOFB( plainText.c_str(), key, iv );
         }
 
-        static std::string decryptECB(const char *, const Key<size> & ) noexcept;
-        static std::string decryptCBC(const char *, const Key<size> &, const IV<size> &) noexcept;
-        static std::string decryptCFB(const char *, const Key<size> &, const IV<size> &) noexcept;
-        static std::string decryptOFB(const char *, const Key<size> &, const IV<size> &) noexcept;
+        static std::string decryptECB(const char * pText, const Key<size> & key ) noexcept {
+            return decryptECB ( pText, 0, key );
+        }
+
+        static std::string decryptCBC(const char * pText, const Key<size> & key, const IV<size> & iv) noexcept{
+            return decryptCBC ( pText, 0, key, iv );
+        }
+
+        static std::string decryptCFB(const char * pText, const Key<size> & key, const IV<size> & iv) noexcept{
+            return decryptCFB ( pText, 0, key, iv );
+        }
+
+        static std::string decryptOFB(const char * pText, const Key<size> & key, const IV<size> & iv) noexcept{
+            return decryptOFB ( pText, 0, key, iv );
+        }
+
+
+        static std::string decryptECB(const char *, uint32,  const Key<size> & ) noexcept;
+        static std::string decryptCBC(const char *, uint32,  const Key<size> &, const IV<size> &) noexcept;
+        static std::string decryptCFB(const char *, uint32,  const Key<size> &, const IV<size> &) noexcept;
+        static std::string decryptOFB(const char *, uint32,  const Key<size> &, const IV<size> &) noexcept;
 
         static std::string decryptECB(const std::string & cipherText, const Key<size> & key ) noexcept {
             return CryptoManager::decryptECB( cipherText.c_str(), key );
@@ -86,13 +119,13 @@ namespace crypto {
 
 #include <sstream>
 template <crypto::BlockSize size>
-std::string crypto::CryptoManager<size>::encryptECB(const char * pPlainText, const Key<size> & key) noexcept {
+std::string crypto::CryptoManager<size>::encryptECB(const char * pPlainText, uint32 len, const Key<size> & key) noexcept {
     Encryptor < size > encryptor;
     std::stringstream cipherText;
 
     encryptor.setKey(key);
 
-    for ( const auto & block : CryptoBlock < size > :: split ( pPlainText ) ) {
+    for ( const auto & block : CryptoBlock < size > :: split ( pPlainText, len ) ) {
         encryptor.setInput( block ).run();
         cipherText << encryptor.getOutput().data();
     }
@@ -101,13 +134,13 @@ std::string crypto::CryptoManager<size>::encryptECB(const char * pPlainText, con
 }
 
 template <crypto::BlockSize size>
-std::string crypto::CryptoManager<size>::encryptCBC(const char * pPlainText, const Key<size> & key, const IV<size> & iv) noexcept {
+std::string crypto::CryptoManager<size>::encryptCBC(const char * pPlainText, uint32 len, const Key<size> & key, const IV<size> & iv) noexcept {
     Encryptor < size > encryptor;
     std::stringstream cipherText;
 
     encryptor.setKey(key).setIV(iv);
 
-    for ( const auto & block : CryptoBlock < size > :: split ( pPlainText ) ) {
+    for ( const auto & block : CryptoBlock < size > :: split ( pPlainText, len ) ) {
         encryptor.setInput( encryptor.getIV() ^ block ).run().setIV( encryptor.getOutput() );
         cipherText << encryptor.getOutput().data();
     }
@@ -116,30 +149,35 @@ std::string crypto::CryptoManager<size>::encryptCBC(const char * pPlainText, con
 }
 
 template <crypto::BlockSize size>
-std::string crypto::CryptoManager<size>::encryptCFB(const char * pPlainText, const Key<size> & key, const IV<size> & iv) noexcept {
+std::string crypto::CryptoManager<size>::encryptCFB(const char * pPlainText, uint32 len, const Key<size> & key, const IV<size> & iv) noexcept {
     Encryptor < size > encryptor;
-    std::stringstream cipherText;
+//    std::stringstream cipherText;
+    std::string str;
+    str.resize( len != 0 ? len + 1 : CryptoBlock <size > :: split ( pPlainText ).size() * static_cast < std::size_t > (size) + 1 );
 
     encryptor.setKey(key).setIV(iv);
+    std::size_t index = 0;
 
-    for ( const auto & block : CryptoBlock < size > :: split ( pPlainText ) ) {
+    for ( const auto & block : CryptoBlock < size > :: split ( pPlainText, len ) ) {
         encryptor.setInput( encryptor.getIV() ).run();
         IV < size > nextIV ( block ^ encryptor.getOutput() );
         encryptor.setIV ( nextIV );
-        cipherText << nextIV.data();
+//        cipherText << nextIV.data();
+        std::memcpy ( str.data() + static_cast < std::size_t > (size) * (index++), nextIV.data(), static_cast < std::size_t > (size) );
     }
 
-    return cipherText.str();
+//    return cipherText.str();
+    return str;
 }
 
 template <crypto::BlockSize size>
-std::string crypto::CryptoManager<size>::encryptOFB(const char * pPlainText, const Key<size> & key, const IV<size> & iv) noexcept {
+std::string crypto::CryptoManager<size>::encryptOFB(const char * pPlainText, uint32 len, const Key<size> & key, const IV<size> & iv) noexcept {
     Encryptor < size > encryptor;
     std::stringstream cipherText;
 
     encryptor.setKey(key).setIV(iv);
 
-    for ( const auto & block : CryptoBlock < size > :: split ( pPlainText ) ) {
+    for ( const auto & block : CryptoBlock < size > :: split ( pPlainText, len ) ) {
         encryptor.setInput( encryptor.getIV() ).run().setIV( encryptor.getOutput() );
         cipherText << ( block ^ encryptor.getOutput() ).data();
     }
@@ -148,54 +186,60 @@ std::string crypto::CryptoManager<size>::encryptOFB(const char * pPlainText, con
 }
 
 template <crypto::BlockSize size>
-std::string crypto::CryptoManager<size>::decryptECB(const char * pCipherText, const Key<size> & key) noexcept {
+std::string crypto::CryptoManager<size>::decryptECB(const char * pCipherText, uint32 len, const Key<size> & key) noexcept {
     Decryptor < size > decryptor;
     std::stringstream plainText;
 
     decryptor.setKey(key);
 
-    for ( const auto & block : CryptoBlock < size > :: split ( pCipherText ) ) {
+    for ( const auto & block : CryptoBlock < size > :: split ( pCipherText, len ) ) {
         decryptor.setInput(block).run();
         plainText << decryptor.getOutput().data();
     }
 
-    return plainText.str().substr(0, plainText.str().find(' '));
+    return plainText.str();
 }
 
 template <crypto::BlockSize size>
-std::string crypto::CryptoManager<size>::decryptCBC(const char * pCipherText, const Key<size> & key, const IV<size> & iv) noexcept {
+std::string crypto::CryptoManager<size>::decryptCBC(const char * pCipherText, uint32 len, const Key<size> & key, const IV<size> & iv) noexcept {
     Decryptor < size > decryptor;
     std::stringstream plainText;
 
     decryptor.setKey(key).setIV(iv);
 
-    for ( const auto & block : CryptoBlock < size > :: split ( pCipherText ) ) {
+    for ( const auto & block : CryptoBlock < size > :: split ( pCipherText, len ) ) {
         IV < size > currentIV = decryptor.getIV();
         decryptor.setInput(block).run().setIV( decryptor.getInput() );
         plainText << ( currentIV ^ decryptor.getOutput() ).data();
     }
 
-    return plainText.str().substr(0, plainText.str().find(' '));
+    return plainText.str();
 }
 
 template <crypto::BlockSize size>
-std::string crypto::CryptoManager<size>::decryptCFB(const char * pCipherText, const Key<size> & key, const IV<size> & iv) noexcept {
+std::string crypto::CryptoManager<size>::decryptCFB(const char * pCipherText, uint32 len, const Key<size> & key, const IV<size> & iv) noexcept {
     Encryptor < size > decryptor;
-    std::stringstream plainText;
+//    std::stringstream plainText;
+    std::string str;
+    str.resize( len != 0 ? len + 1 : CryptoBlock <size > :: split ( pCipherText ).size() * static_cast < std::size_t > (size) + 1 );
+
+    std::size_t index = 0;
 
     decryptor.setKey(key).setIV(iv);
 
-    for ( const auto & block : CryptoBlock < size > :: split ( pCipherText ) ) {
+    for ( const auto & block : CryptoBlock < size > :: split ( pCipherText, len ) ) {
         decryptor.setInput( decryptor.getIV() ).run().setIV ( block );
-        plainText << ( decryptor.getOutput() ^ block ).data();
+//        plainText << ( decryptor.getOutput() ^ block ).data();
+        std::memcpy ( str.data() + static_cast < std::size_t > (size) * (index++), ( decryptor.getOutput() ^ block ).data(), static_cast < std::size_t > (size) );
+
     }
 
-    return plainText.str().substr(0, plainText.str().find(' '));
+    return str;
 }
 
 template <crypto::BlockSize size>
-std::string crypto::CryptoManager<size>::decryptOFB(const char * pCipherText, const Key<size> & key, const IV<size> & iv) noexcept {
-    return encryptOFB( pCipherText, key, iv );
+std::string crypto::CryptoManager<size>::decryptOFB(const char * pCipherText, uint32 len, const Key<size> & key, const IV<size> & iv) noexcept {
+    return encryptOFB( pCipherText, len, key, iv );
 }
 
 template<crypto::BlockSize size>

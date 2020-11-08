@@ -24,10 +24,14 @@ public:
 };
 
 
+#include <fstream>
+
 int main () {
 
     try {
-        return Client( LOCALHOST, PORT, true ).run();
+        std::ofstream logFile ( "../logs/nodeBLog.txt" );
+        return Client( LOCALHOST, PORT, true, logFile ).run();
+        logFile.close();
     } catch ( std::exception const & exception ) {
         std::cerr << "Exception caught in application base runtime : " << exception.what() << '\n';
     }
@@ -36,8 +40,10 @@ int main () {
 }
 
 
+auto toLower = [](std::string & s) -> std::string & { for( char & c : s ) c = static_cast < char > (std::tolower(c)); return s; };
+auto removeSpaces = [](std::string & s) -> std::string & { while ( s.ends_with(' ') ) s.pop_back(); return s; };
+
 bool isValidEncryptMode ( std::string & string ) noexcept {
-    auto toLower = [](std::string & s) -> std::string & { for( char & c : s ) c = static_cast < char > (std::tolower(c)); return s; };
     if ( toLower ( string ) == "ecb" ) return true;
     if ( toLower ( string ) == "cbc" ) return true;
     if ( toLower ( string ) == "cfb" ) return true;
@@ -45,6 +51,16 @@ bool isValidEncryptMode ( std::string & string ) noexcept {
 
     return false;
 }
+
+crypto128::CryptoManager::EncryptMode getEncryptionMode ( std::string & string ) noexcept {
+    if ( removeSpaces ( toLower ( string ) ) == "ecb" ) return crypto128::CryptoManager::ECB;
+    if ( removeSpaces ( toLower ( string ) ) == "cbc" ) return crypto128::CryptoManager::CBC;
+    if ( removeSpaces ( toLower ( string ) ) == "cfb" ) return crypto128::CryptoManager::CFB;
+    if ( removeSpaces ( toLower ( string ) ) == "ofb" ) return crypto128::CryptoManager::OFB;
+
+    return crypto::CryptoManager<crypto::BITS_128>::ECB;
+}
+
 
 #include <fstream>
 
@@ -76,7 +92,7 @@ int Client::run () noexcept (false) {
         std::string ivString;
 
         this->_socket >> encryptionMode >> keyString;
-        if ( encryptionMode != "ecb" )
+        if ( removeSpaces(encryptionMode)  != "ecb" )
             this->_socket >> ivString;
 
         crypto128::Key receivedKey( keyString.c_str() );
@@ -84,7 +100,50 @@ int Client::run () noexcept (false) {
 
         std::cout << encryptionMode << '\n' << receivedKey.toHexString() << '\n' << receivedIV.toHexString() << '\n';
 
+        std::cout << "SWITCH ENCRIPTION : \n" << getEncryptionMode ( encryptionMode )  << '\n'
+                  << receivedKey.toHexString() << '\n' << receivedIV.toHexString();
+
+        this->_socket.enableEncryption( getEncryptionMode( encryptionMode ), receivedKey, receivedIV );
+        this->_socket << "NODE_READY";
+
+
+        std::string startConfirm;
+
+        this->_socket >> startConfirm;
+
+        if ( removeSpaces(startConfirm) != "ready" )
+            exit(0);
+
+
+
+        Socket nodeSocket;
+        ClientSocket toNode ( "127.0.0.1", 6999 );
+        if ( ! toNode.isConnected() ) {
+            ServerSocket channel ( 6999 );
+            Socket fromNode = channel.accept();
+            nodeSocket = Socket(fromNode);
+        } else {
+            nodeSocket = Socket(toNode);
+        }
+
+        nodeSocket.enableEncryption( getEncryptionMode( encryptionMode ), receivedKey, receivedIV );
+
+        std::string aInfo;
+
+        nodeSocket >> aInfo;
+
+        std::string confirm;
+        while ( removeSpaces ( aInfo ) != "<EOF>" ) {
+            std::cout << aInfo;
+            this->_socket << "8_blocks";
+            this->_socket >> confirm;
+            nodeSocket >> aInfo;
+        }
+
+        this->_socket << "done";
+
         this->_socket.close();
+
 
     } catch ( Socket::Exception const & exception ) {
         std::cerr << "Exception caught in client runtime : " << exception.what() << '\n';

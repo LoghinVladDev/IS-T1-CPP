@@ -25,6 +25,8 @@ private:
     crypto128::Key _k2 { KeyManager::_dummyKey2 };
     crypto128::Key _k3 { KeyManager::_dummyKey3 };
 
+    crypto128::Key _iv { crypto128::IV::getRandom() };
+
     KeyManager() noexcept = default;
 
 public:
@@ -33,6 +35,8 @@ public:
     const crypto128::Key & getK1() noexcept;
     const crypto128::Key & getK2() noexcept;
     const crypto128::Key & getK3() noexcept;
+
+    const crypto128::IV & getIV () noexcept;
 
     KeyManager & setK1 ( const crypto128::Key & ) noexcept;
     KeyManager & setK2 ( const crypto128::Key & ) noexcept;
